@@ -24,11 +24,11 @@ def combine_images(images, output_path, mode='horizontal', spacing=0, spacing_co
 
     # Calculate the size of the combined image
     if mode == 'horizontal':
-        combined_width = width * len(images) + spacing * (len(images) - 1)
-        combined_height = height
+        combined_width = sum(Image.open(image).size[0] for image in images) + spacing * (len(images) - 1)
+        combined_height = max(Image.open(image).size[1] for image in images)
     elif mode == 'vertical':
-        combined_width = width
-        combined_height = height * len(images) + spacing * (len(images) - 1)
+        combined_width = max(Image.open(image).size[0] for image in images)
+        combined_height = sum(Image.open(image).size[1] for image in images) + spacing * (len(images) - 1)
     else:
         raise ValueError("Invalid mode. Must be 'horizontal' or 'vertical'.")
 
@@ -50,22 +50,21 @@ def combine_images(images, output_path, mode='horizontal', spacing=0, spacing_co
 
         combined_image.paste(image, (x, y))
         if mode == 'horizontal':
-            x += width + spacing
+            x += image.size[0] + spacing
         elif mode == 'vertical':
-            y += height + spacing
+            y += image.size[1] + spacing
 
     # Save the combined image to the output path
     combined_image.save(output_path)
 
 # Usage
-image_1 = 'C:\\Users\\benjo\\iCloudDrive\\Desktop\\Spring 2024\\ME 601 - Metal Additive Manufacturing\\Tibia\\Images\\TibiaR003-isometric-cropped.png'
-image_2 = 'C:\\Users\\benjo\\iCloudDrive\\Desktop\\Spring 2024\\ME 601 - Metal Additive Manufacturing\\Tibia\\Images\\TibiaR003-front-cropped.png'
-image_3 = 'C:\\Users\\benjo\\iCloudDrive\\Desktop\\Spring 2024\\ME 601 - Metal Additive Manufacturing\\Tibia\\Images\\TibiaR003-right-cropped.png'
-images = [image_1, image_2, image_3]
+image_1 = 'C:\\Users\\benjo\\iCloudDrive\\Desktop\\Spring 2024\\ME 601 - Metal Additive Manufacturing\\Tibia\\Images\\TibiaR004-CS.png'
+image_2 = 'C:\\Users\\benjo\\iCloudDrive\\Desktop\\Spring 2024\\ME 601 - Metal Additive Manufacturing\\Tibia\\Images\\TibiaR005-CS-cropped.png'
+images = [image_1, image_2]
 output_path = 'C:\\Users\\benjo\\Downloads\\output.png'
 
 mode = 'horizontal'  # 'horizontal' or 'vertical'
-spacing = 100  # spacing between images in pixels
+spacing = 600  # spacing between images in pixels
 spacing_color = 'white'  # 'white' or 'black' or 'transparent'
 no_background = False  # True or False
 
