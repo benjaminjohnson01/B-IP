@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""A command-line tool to compress and/or mute a video file using ffmpeg."""
+
 import argparse
 import shutil
 import subprocess
@@ -7,9 +9,30 @@ import sys
 from pathlib import Path
 
 
+def out_path_for(src: Path, out_arg: Path | None, tag: str, ext: str) -> Path:
+    if out_arg is None:
+        return src.with_name(f"{src.stem}{tag}{ext}")
+    o = out_arg.resolve()
+    if o.exists() and o.is_dir():
+        return o / f"{src.stem}{tag}{ext}"
+    if o.suffix:  # looks like a file path with extension
+        return o
+    return o / f"{src.stem}{tag}{ext}"
+
+
 def main() -> None:
-    p = argparse.ArgumentParser(description="Compress and mute a video.")
+    p = argparse.ArgumentParser(
+        description="Create a single output: compress, mute, or both."
+    )
     p.add_argument("video", type=Path, help="Path to the input video (e.g., .mov)")
+    p.add_argument("-o", "--output", type=Path, help="Output file path OR directory")
+    p.add_argument(
+        "-m",
+        "--mode",
+        choices=["compress", "mute", "both"],
+        default="compress",
+        help="Operation to perform: compress, mute, or both (compress+mute)",
+    )
     args = p.parse_args()
 
     if shutil.which("ffmpeg") is None:
@@ -19,14 +42,15 @@ def main() -> None:
     if not src.exists():
         sys.exit(f"Error: {src} not found.")
 
-    stem = src.stem
-    out_dir = src.parent
-    compressed = out_dir / f"{stem}_compressed.mp4"
-    muted = out_dir / f"{stem}_muted{src.suffix}"
+    # Decide tag + extension for default naming.
+    tag = {"compress": "_c", "mute": "_m", "both": "_cm"}[args.mode]
+    ext = ".mp4" if args.mode in {"compress", "both"} else src.suffix
+    out = out_path_for(src, args.output, tag, ext)
+    out.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1) Compress: H.264 with a sane CRF; keeps resolution, trims size significantly.
-    subprocess.run(
-        [
+    # Build the ffmpeg command based on mode (single output file).
+    if args.mode == "compress":
+        cmd = [
             "ffmpeg",
             "-hide_banner",
             "-loglevel",
@@ -48,14 +72,10 @@ def main() -> None:
             "aac",
             "-b:a",
             "128k",
-            str(compressed),
-        ],
-        check=True,
-    )
-
-    # 2) Remove sound: copy video stream, drop audio.
-    subprocess.run(
-        [
+            str(out),
+        ]
+    elif args.mode == "mute":
+        cmd = [
             "ffmpeg",
             "-hide_banner",
             "-loglevel",
@@ -66,12 +86,33 @@ def main() -> None:
             "-c",
             "copy",
             "-an",
-            str(muted),
-        ],
-        check=True,
-    )
+            str(out),
+        ]
+    else:  # both = compress + mute (compressed video, no audio)
+        cmd = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(src),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "slow",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-an",
+            str(out),
+        ]
 
-    print(f"Wrote:\n  {compressed}\n  {muted}")
+    subprocess.run(cmd, check=True)
+    print(f"Wrote: {out}")
 
 
 if __name__ == "__main__":
