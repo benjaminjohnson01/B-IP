@@ -11,7 +11,6 @@ def combine_images(
     spacing_color="transparent",
     no_background=False,
 ):
-
     def remove_background(image):
         background_color = (255, 255, 255)  # Assuming white background
         threshold = (
